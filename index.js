@@ -1,121 +1,114 @@
+require('dotenv').config()
+require('./mongo')
+
 //se importa express 
-const express=require('express')
-const cors=require('cors')
+const express = require('express')
+const app = express()
+const cors = require('cors')
 
-const app=express()
-
-const logger=(request,response,next)=>{
-    console.log(request.method)
-console.log(request.path)
-console.log(request.body)
-console.log('-----')
-next()
-}
+//importamos a persona de Persona.js
+const Persona = require('./models/Persona') 
 
 app.use(cors())
 app.use(express.json())
 
-app.use(logger)
-
-
- let personas=[
-     {
-        "id": 3,
-        "nombre": "Juan Carlos",
-        "apellido": "Gomez Perez",
-        "nacionalidad":"mexicano",
-        "fecha_contrato":"11/15/2018",
-        "sexo":"hombre"
-    },
-    
-        {
-            "id":2,
-            "nombre":"Pedro",
-            "apellido": "castillo aguilar",
-            "nacionalidad":"mexicano",
-            "fecha_contrato":"07/07/2016",
-            "sexo":"hombre"
-        },
-        {
-            "id":1,
-            "nombre":"adriana",
-            "apellido": "Rivera Anaya",
-            "nacionalidad":"mexicano",
-            "fecha_contrato":"06/011/2019",
-            "sexo":"mujer"
-        }
- ]
-
 /*
-const app=http.createServer((request,response)=>{
-    response.writeHead(200, {'Content-Type': 'application/json'})
-    response.end(JSON.stringify(personas))
-});*/
-
+const generateID=()=>{
+    const personasIds=personas.map(n=>n.id)
+    const maxID= personasIds.length ? Math.max(... personasIds):0
+    const newId=maxID +1
+    return newId
+}
+*/
 //usar express
-app.get('/',(request, response)=>{
+app.get('/', (request, response) => {
     response.send('<h1>Bienvenido a el ApiRest</h1>')
 })
 
-app.get('/personas',(request, response)=>{
-    response.json(personas)
-})
-
-app.get('/personas/:id',(request, response)=>{
-    const id =Number(request.params.id)
-    const persona=personas.find(persona => persona.id == id)
-    
-    if(persona){
-        response.json(persona)  
-    }else{
-      response.status(404).end()
-    }     
-})
-
-app.delete('/personas/:id', (request,response)=>{
-    const id =Number(request.params.id)
-    personas=personas.filter(persona=>persona.id !=id)
-    response.status(204).end()
-})
-
-app.post('/personas', (request,response)=>{
-    const persona =request.body
-    if(!persona || !persona.nombre){
-        return response.status(400).json({
-            error:('persona.nombre is missing')
-        })
-    }   
-   //crear id en automatico
-   const ides=personas.map(persona=>persona.id)
-   const idMax= Math.max(... ides) 
-   //se colocan las variables que almacenan en la tabla
-   const newPersona={
-   id:idMax + 1,  
-   nombre:persona.nombre,
-   apellido:persona.apellido,
-   nacionalidad:persona.nacionalidad,
- //nacionalidad:typeof persona.important !='undefined'? persona.nacionalidad:false,
-   fecha_contrato:persona.fecha_contrato,
-   sexo:persona.sexo
-}
-//añade a la lista
-    //personas={...personas, newPersona}
-    //o
-    personas=personas.concat(newPersona)
-
-    response.status(201).json(newPersona)
-})
-
-//problemas de rutas
-app.use((request,response)=>{
-    console.log(request.path)
-    response.status(404).json({
-        Error:"Ruta no valida"
+app.get('/personas', (request, response) => {
+    Persona.find({}).then(personas => {
+        response.json(personas)
     })
 })
 
+app.get('/personas/:id', (request, response, next) => {
+    const { id } = request.params
+
+    Persona.findById(id).then(persona => {
+        if (persona) {
+            return response.json(persona)
+        } else {
+            response.status(404).end()
+        }
+    }).catch(err => {
+        next(err)
+    })
+})
+
+
+app.put('/personas/:id', (request, response, next) => {
+    const { id } = request.params
+    const persona = request.body
+
+    const newPersonaUpdate = {
+        nombre: persona.nombre,
+        apellido: persona.apellido,
+        nacionalidad: persona.nacionalidad,
+        fecha_contrato: persona.fecha_contrato,
+        sexo: persona.sexo
+    }
+
+    Persona.findByIdAndUpdate(id, newPersonaUpdate,{new:true})
+    .then(result=>{
+        response.json(result)
+    })
+})
+
+app.delete('/personas/:id', (request, response) => {
+    const { id } = request.params
+    Persona.findOneAndRemove(id).then(result => {
+        response.status(204).end()
+    }).catch(error => next(error))
+    response.status(204).end()
+})
+
+app.post('/personas', (request, response) => {
+    const persona = request.body
+
+    if (!persona) {
+        return response.status(400).json({
+            error: ('persona.nombre is missing')
+        })
+    }
+    const newPersona = new Persona({
+        nombre: persona.nombre,
+        apellido: persona.apellido,
+        nacionalidad: persona.nacionalidad,
+        fecha_contrato: persona.fecha_contrato,
+        sexo: persona.sexo
+    })
+    //guarda bd
+    newPersona.save().then(savedPersona => {
+        response.json(savedPersona)
+    })
+})
+
+
+app.use((request, response, next)=>{
+    response.status(404).end()})
+//mildeware par acachar los errores
+app.use((error, request, response, next) => {
+    console.error(error)
+    console.log(error.name)
+    if (error.name == 'CastError') {
+        response.status(400).send({ error: 'La id usada es incorecta' })
+    } else {
+        response.status(500).end()
+    }
+})
+
 //reconfigurar puerto por heroku
-const PORT =process.env.PORT|| 3000
-app.listen(PORT, ()=>{
-   console.log('Server running on port ${PORT}') 
+const PORT = process.env.PORT
+app.listen(PORT, () => {
+    console.log('Server running on port ${PORT}')
 })

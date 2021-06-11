@@ -1,0 +1,10 @@
+post http://localhost:3001/personas
+Content-Type: application/json
+
+{
+    "nombre": "maria",
+    "apellido": "olguin",
+    "nacionalidad": "candiense",
+    "fecha_contrato": "02/17/1995",
+    "sexo": "femenina"
+}

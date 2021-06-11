@@ -1,0 +1,10 @@
+PUT  http://localhost:3001/personas/60c28f8b0d73c94f0ccedb20
+Content-Type: application/json
+
+{
+    "nombre": "alan ismael",
+    "apellido": "gomez",
+    "nacionalidad": "chino",
+    "fecha_contrato": "02/17/1995",
+    "sexo": "masculino"
+}
